@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Чат</title>
+</head>
+<body>
+    <!-- {{ nickname }} — Jinja2 подставляет сюда значение из Flask -->
+    <h1>Привет, {{ nickname }}!</h1>
+
+    <!-- Здесь потом будет список сообщений (задача Евгения) -->
+    <div id="messages">
+        <p style="color: grey;">Сообщений пока нет...</p>
+    </div>
+
+    <!-- Форма отправки сообщения — твоя задача ID 3 -->
+    <!-- Пока просто заглушка, маршрут /send добавим следующим шагом -->
+    <form action="/send" method="post">
+        <input type="text" name="message" placeholder="Введите сообщение..." required>
+        <button type="submit">Отправить</button>
+    </form>
+
+    <!-- Ссылка для выхода из чата -->
+    <a href="/logout">Выйти</a>
+</body>
+</html>

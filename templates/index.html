@@ -1,13 +1,23 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Чат</title>
+    <title>Чат — Вход</title>
 </head>
 <body>
     <h1>Добро пожаловать в чат</h1>
-    <form action="/chat" method="get">
-        <input type="text" name="nickname" placeholder="Ваш никнейм" required>
-        <button type="submit">Войти</button>
+
+    <!-- Если Flask передал переменную error — показываем её -->
+    <!-- {% if error %} — это Jinja2, язык шаблонов Flask -->
+    {% if error %}
+        <p style="color: red;">{{ error }}</p>
+    {% endif %}
+
+    <!-- action="/login" — форма отправляет данные на маршрут /login -->
+    <!-- method="post" — данные идут скрыто, не в адресной строке -->
+    <form action="/login" method="post">
+        <input type="text"     name="nickname" placeholder="Ваш никнейм" required><br><br>
+        <input type="password" name="password" placeholder="Ваш пароль"  required><br><br>
+        <button type="submit">Войти / Зарегистрироваться</button>
     </form>
 </body>
 </html>
