@@ -1,102 +1,169 @@
 from flask import Flask, render_template, request, redirect, url_for, session
-import sqlite3  # встроенная библиотека Python для работы с базой данных
+import sqlite3, datetime
 
 app = Flask(__name__)
+app.secret_key = "секрет123"
 
-# Секретный ключ — нужен Flask чтобы шифровать сессию (данные о том кто вошёл).
-# В реальном проекте это длинная случайная строка, но для учёбы так сойдёт
-app.secret_key = "мой_секретный_ключ_123"
 
-# --- ФУНКЦИЯ ДЛЯ ПОДКЛЮЧЕНИЯ К БАЗЕ ДАННЫХ ---
-# Каждый раз когда нам нужна БД — вызываем эту функцию
-# Она возвращает объект соединения с файлом chat.db
+# ---------------------------------------------------------------
+# БАЗА ДАННЫХ
+# ---------------------------------------------------------------
+
 def get_db():
-    conn = sqlite3.connect("chat.db")       # создаёт файл chat.db если его нет
-    conn.row_factory = sqlite3.Row          # чтобы данные возвращались как словарь, а не просто список
+    """Открывает соединение с базой данных"""
+    conn = sqlite3.connect("chat.db")
+    conn.row_factory = sqlite3.Row  # поля доступны по имени: row["nickname"]
     return conn
 
-# --- СОЗДАНИЕ ТАБЛИЦ ПРИ ПЕРВОМ ЗАПУСКЕ ---
-# Эта функция создаёт таблицу пользователей если её ещё нет
+
 def init_db():
+    """Создаёт таблицы при первом запуске — если их ещё нет"""
     conn = get_db()
+
+    # Таблица пользователей (Илья — ID 4)
     conn.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id       INTEGER PRIMARY KEY AUTOINCREMENT,
-            nickname TEXT    UNIQUE NOT NULL,
-            password TEXT    NOT NULL
+            nickname TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL
         )
     """)
-    # CREATE TABLE IF NOT EXISTS — создай таблицу ТОЛЬКО если её ещё нет
-    # id — уникальный номер каждого пользователя, растёт автоматически
-    # nickname TEXT UNIQUE — никнейм, тип "текст", и обязательно уникальный
-    # password TEXT NOT NULL — пароль, не может быть пустым
-    conn.commit()   # сохраняем изменения в файл
-    conn.close()    # закрываем соединение
 
-# --- ГЛАВНАЯ СТРАНИЦА — форма входа/регистрации ---
+    # Таблица сообщений (Евгений — ID 5, 7)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS messages (
+            id        INTEGER PRIMARY KEY AUTOINCREMENT,
+            nickname  TEXT NOT NULL,
+            text      TEXT NOT NULL,
+            timestamp TEXT NOT NULL
+        )
+    """)
+
+    conn.commit()
+    conn.close()
+
+
+# ---------------------------------------------------------------
+# МАРШРУТЫ — ВХОД И РЕГИСТРАЦИЯ (Илья — ID 4)
+# ---------------------------------------------------------------
+
 @app.route("/")
 def index():
+    """Главная страница — форма входа"""
     return render_template("index.html")
 
-# --- МАРШРУТ ВХОДА/РЕГИСТРАЦИИ ---
-# method=["POST"] — эта страница принимает данные из формы
+
 @app.route("/login", methods=["POST"])
 def login():
-    # Берём никнейм и пароль из формы которую отправил пользователь
-    nickname = request.form.get("nickname")
-    password = request.form.get("password")
+    """
+    Обрабатывает форму входа.
+    Сценарий 1: новый ник → регистрируем
+    Сценарий 2: ник есть + пароль верный → входим
+    Сценарий 3: пароль неверный → ошибка
+    """
+    nickname = request.form.get("nickname", "").strip()
+    password = request.form.get("password", "").strip()
+
+    # Защита от пустых полей (на случай если HTML-атрибут required обошли)
+    if not nickname or not password:
+        return render_template("index.html", error="Заполни оба поля!")
 
     conn = get_db()
-
-    # Ищем пользователя с таким никнеймом в базе данных
-    # ? — это защита от SQL-инъекций (хакерских атак через форму)
     user = conn.execute(
         "SELECT * FROM users WHERE nickname = ?", (nickname,)
-    ).fetchone()  # fetchone — берём одну запись (или None если не нашли)
+    ).fetchone()
 
     if user is None:
-        # Такого никнейма нет → РЕГИСТРАЦИЯ нового пользователя
+        # Новый пользователь — регистрируем
         conn.execute(
             "INSERT INTO users (nickname, password) VALUES (?, ?)",
             (nickname, password)
         )
         conn.commit()
-        # Запоминаем в сессии что этот пользователь вошёл
         session["nickname"] = nickname
 
     elif user["password"] == password:
-        # Ник найден и пароль совпадает → АВТОРИЗАЦИЯ
+        # Пароль совпадает — входим
         session["nickname"] = nickname
 
     else:
-        # Ник найден но пароль неверный → показываем ошибку
+        # Пароль неверный
         conn.close()
-        # render_template с параметром error — передаём текст ошибки в HTML
         return render_template("index.html", error="Неверный пароль!")
 
     conn.close()
-    # redirect — перенаправляем на страницу чата
-    # url_for("chat") — Flask сам строит адрес для функции chat()
     return redirect(url_for("chat"))
 
-# --- СТРАНИЦА ЧАТА ---
+
+# ---------------------------------------------------------------
+# МАРШРУТЫ — ЧАТ (Илья — ID 3, Евгений — ID 5 и 7)
+# ---------------------------------------------------------------
+
 @app.route("/chat")
 def chat():
-    # Проверяем что пользователь вошёл (его ник есть в сессии)
+    """
+    Страница чата.
+    Если пользователь не вошёл — отправляем на главную.
+    Евгений: здесь читаем сообщения из БД.
+    """
     if "nickname" not in session:
-        # Если не вошёл — отправляем обратно на главную
         return redirect(url_for("index"))
 
-    # Передаём никнейм в шаблон чтобы отобразить "Привет, Илья!"
-    return render_template("chat.html", nickname=session["nickname"])
+    conn = get_db()
+    # Евгений (ID 5): берём все сообщения, от старых к новым
+    messages = conn.execute(
+        "SELECT * FROM messages ORDER BY id ASC"
+    ).fetchall()
+    conn.close()
 
-# --- ВЫХОД ИЗ ЧАТА ---
+    return render_template(
+        "chat.html",
+        nickname=session["nickname"],
+        messages=messages
+    )
+
+
+@app.route("/send", methods=["POST"])
+def send():
+    """
+    Принимает сообщение из формы и сохраняет в БД.
+    Илья (ID 3): отправка сообщений.
+    Евгений (ID 7): timestamp записывается здесь.
+    """
+    if "nickname" not in session:
+        return redirect(url_for("index"))
+
+    text = request.form.get("message", "").strip()
+
+    if text:  # сохраняем только если сообщение не пустое
+        # Евгений (ID 7): формат времени можно изменить здесь
+        timestamp = datetime.datetime.now().strftime("%d.%m.%Y %H:%M")
+        conn = get_db()
+        conn.execute(
+            "INSERT INTO messages (nickname, text, timestamp) VALUES (?, ?, ?)",
+            (session["nickname"], text, timestamp)
+        )
+        conn.commit()
+        conn.close()
+
+    return redirect(url_for("chat"))
+
+
+# ---------------------------------------------------------------
+# МАРШРУТ — ВЫХОД
+# ---------------------------------------------------------------
+
 @app.route("/logout")
 def logout():
-    session.pop("nickname", None)   # удаляем никнейм из сессии
+    """Удаляет сессию и возвращает на главную"""
+    session.pop("nickname", None)
     return redirect(url_for("index"))
 
-# Запускаем сервер
+
+# ---------------------------------------------------------------
+# ЗАПУСК
+# ---------------------------------------------------------------
+
 if __name__ == "__main__":
-    init_db()           # сначала создаём таблицы в БД
-    app.run(debug=True)
+    init_db()            # создаём таблицы если их нет
+    app.run(debug=True)  # debug=True — показывает ошибки в браузере

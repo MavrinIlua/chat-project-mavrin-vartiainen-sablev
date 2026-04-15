@@ -1,25 +1,75 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
+    <meta charset="UTF-8">
     <title>Чат</title>
+    <!-- Анна: подключаем стили из static/style.css -->
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <!-- {{ nickname }} — Jinja2 подставляет сюда значение из Flask -->
+
+    <!-- {{ nickname }} — Jinja2 подставляет ник из сессии Flask -->
     <h1>Привет, {{ nickname }}!</h1>
 
-    <!-- Здесь потом будет список сообщений (задача Евгения) -->
+    <!--
+        Блок сообщений.
+        Евгений (ID 5, 7): сюда выводится история из БД.
+        Анна (ID 6): этот блок будет обновляться динамически через JavaScript.
+        id="messages" — Анна обращается к этому блоку из chat.js
+    -->
     <div id="messages">
-        <p style="color: grey;">Сообщений пока нет...</p>
+
+        <!--
+            {% for msg in messages %} — цикл Jinja2 по всем сообщениям
+            Flask передал список messages из маршрута /chat
+            Каждый msg — это одна строка из таблицы messages в БД
+        -->
+        {% for msg in messages %}
+            <div class="message">
+                <!-- msg.nickname — кто написал (Евгений ID 7) -->
+                <span class="author">{{ msg.nickname }}</span>
+                <!-- msg.timestamp — когда написал (Евгений ID 7) -->
+                <span class="time">{{ msg.timestamp }}</span>
+                <!-- msg.text — текст сообщения -->
+                <p class="text">{{ msg.text }}</p>
+            </div>
+        {% endfor %}
+        <!-- {% endfor %} — обязательно закрываем цикл -->
+
+        <!-- Показываем если сообщений в БД ещё нет -->
+        {% if messages | length == 0 %}
+            <p style="color: grey;">Сообщений пока нет. Напиши первым!</p>
+        {% endif %}
+
     </div>
 
-    <!-- Форма отправки сообщения -->
-    <!-- Пока просто заглушка, маршрут /send добавим следующим шагом -->
-    <form action="/send" method="post">
-        <input type="text" name="message" placeholder="Введите сообщение..." required>
+    <!--
+        Форма отправки сообщения (Илья — ID 3).
+        id="message-form"  — Анна обращается к форме из chat.js
+        id="message-input" — Анна обращается к полю ввода из chat.js
+        action="/send"     — данные уходят на маршрут /send в app.py
+        method="post"      — скрытая отправка
+    -->
+    <form action="/send" method="post" id="message-form">
+        <input type="text"
+               name="message"
+               id="message-input"
+               placeholder="Написать сообщение..."
+               autocomplete="off"
+               maxlength="500"
+               required>
         <button type="submit">Отправить</button>
     </form>
 
-    <!-- Ссылка для выхода из чата -->
-    <a href="/logout">Выйти</a>
+    <br>
+    <a href="/logout">Выйти из чата</a>
+
+    <!--
+        Анна (ID 6): подключаем JavaScript для динамической отправки.
+        Скрипт в конце body — чтобы HTML успел загрузиться до скрипта.
+        Пока chat.js пустой — форма работает с перезагрузкой страницы.
+    -->
+    <script src="/static/chat.js"></script>
+
 </body>
 </html>

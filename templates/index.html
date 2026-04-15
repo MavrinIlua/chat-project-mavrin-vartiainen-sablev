@@ -1,23 +1,52 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-    <title>Чат — Вход</title>
+    <meta charset="UTF-8">
+    <title>Вход в чат</title>
+    <!-- Анна: подключаем стили из static/style.css -->
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+
     <h1>Добро пожаловать в чат</h1>
 
-    <!-- Если Flask передал переменную error — показываем её -->
-    <!-- {% if error %} — это Jinja2, язык шаблонов Flask -->
+    <!--
+        {% if error %} ... {% endif %} — блок Jinja2
+        Flask передаёт переменную error если что-то пошло не так
+        Если error есть — показываем красный текст
+        Если error нет — этот блок вообще не появится на странице
+    -->
     {% if error %}
         <p style="color: red;">{{ error }}</p>
     {% endif %}
 
-    <!-- action="/login" — форма отправляет данные на маршрут /login -->
-    <!-- method="post" — данные идут скрыто, не в адресной строке -->
+    <!--
+        action="/login"  — данные формы уйдут на маршрут /login в app.py
+        method="post"    — данные не видны в адресной строке (в отличие от GET)
+    -->
     <form action="/login" method="post">
-        <input type="text"     name="nickname" placeholder="Ваш никнейм" required><br><br>
-        <input type="password" name="password" placeholder="Ваш пароль"  required><br><br>
+
+        <input type="text"
+               name="nickname"
+               placeholder="Придумай никнейм"
+               maxlength="30"
+               required>
+        <br><br>
+
+        <input type="password"
+               name="password"
+               placeholder="Придумай пароль"
+               maxlength="50"
+               required>
+        <br><br>
+
         <button type="submit">Войти / Зарегистрироваться</button>
+
     </form>
+
+    <p style="color: grey; font-size: 0.9em;">
+        Первый раз? Просто введи ник и пароль — аккаунт создастся автоматически.
+    </p>
+
 </body>
 </html>
