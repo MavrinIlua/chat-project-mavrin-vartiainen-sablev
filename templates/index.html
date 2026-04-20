@@ -3,49 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <title>Вход в чат</title>
-    <!-- Анна: подключаем стили из static/style.css -->
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+        /* Базовые стили страницы входа — Анна заменит на красивые */
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 400px;
+            margin: 80px auto;
+            padding: 20px;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 12px;
+            font-size: 1em;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            font-size: 1em;
+        }
+    </style>
 </head>
 <body>
 
-    <h1>Добро пожаловать в чат</h1>
+    <h2>Добро пожаловать в чат</h2>
 
-    <!--
-        {% if error %} ... {% endif %} — блок Jinja2
-        Flask передаёт переменную error если что-то пошло не так
-        Если error есть — показываем красный текст
-        Если error нет — этот блок вообще не появится на странице
-    -->
+    <!-- Если Flask передал ошибку — показываем красный текст -->
     {% if error %}
         <p style="color: red;">{{ error }}</p>
     {% endif %}
 
     <!--
-        action="/login"  — данные формы уйдут на маршрут /login в app.py
-        method="post"    — данные не видны в адресной строке (в отличие от GET)
+        Одна форма — одна кнопка "Войти".
+        Логика внутри app.py сама разберётся:
+        если ник новый — зарегистрирует,
+        если ник известен и пароль верный — войдёт,
+        если пароль неверный — вернёт ошибку.
     -->
     <form action="/login" method="post">
-
         <input type="text"
                name="nickname"
-               placeholder="Придумай никнейм"
+               placeholder="Никнейм"
                maxlength="30"
                required>
-        <br><br>
 
         <input type="password"
                name="password"
-               placeholder="Придумай пароль"
+               placeholder="Пароль"
                maxlength="50"
                required>
-        <br><br>
 
-        <button type="submit">Войти / Зарегистрироваться</button>
-
+        <button type="submit">Войти</button>
     </form>
 
-    <p style="color: grey; font-size: 0.9em;">
-        Первый раз? Просто введи ник и пароль — аккаунт создастся автоматически.
+    <p style="color: #aaa; font-size: 0.85em; margin-top: 16px;">
+        Первый раз? Просто введи любой ник и пароль — аккаунт создастся сам.
     </p>
 
 </body>

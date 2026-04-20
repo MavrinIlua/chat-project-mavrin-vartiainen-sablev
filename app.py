@@ -19,8 +19,6 @@ def get_db():
 def init_db():
     """Создаёт таблицы при первом запуске — если их ещё нет"""
     conn = get_db()
-
-    # Таблица пользователей (Илья — ID 4)
     conn.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id       INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -28,8 +26,6 @@ def init_db():
             password TEXT NOT NULL
         )
     """)
-
-    # Таблица сообщений (Евгений — ID 5, 7)
     conn.execute("""
         CREATE TABLE IF NOT EXISTS messages (
             id        INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -38,9 +34,32 @@ def init_db():
             timestamp TEXT NOT NULL
         )
     """)
-
     conn.commit()
     conn.close()
+
+
+# ---------------------------------------------------------------
+# ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ — приветствие по времени суток
+# ---------------------------------------------------------------
+
+def get_greeting():
+    """
+    Возвращает приветствие в зависимости от текущего часа.
+    Международный стандарт:
+      5:00–11:59  → Доброе утро
+     12:00–17:59  → Добрый день
+     18:00–22:59  → Добрый вечер
+     23:00–4:59   → Доброй ночи
+    """
+    hour = datetime.datetime.now().hour
+    if 5 <= hour < 12:
+        return "Доброе утро"
+    elif 12 <= hour < 18:
+        return "Добрый день"
+    elif 18 <= hour < 23:
+        return "Добрый вечер"
+    else:
+        return "Доброй ночи"
 
 
 # ---------------------------------------------------------------
@@ -64,7 +83,6 @@ def login():
     nickname = request.form.get("nickname", "").strip()
     password = request.form.get("password", "").strip()
 
-    # Защита от пустых полей (на случай если HTML-атрибут required обошли)
     if not nickname or not password:
         return render_template("index.html", error="Заполни оба поля!")
 
@@ -87,7 +105,6 @@ def login():
         session["nickname"] = nickname
 
     else:
-        # Пароль неверный
         conn.close()
         return render_template("index.html", error="Неверный пароль!")
 
@@ -101,16 +118,11 @@ def login():
 
 @app.route("/chat")
 def chat():
-    """
-    Страница чата.
-    Если пользователь не вошёл — отправляем на главную.
-    Евгений: здесь читаем сообщения из БД.
-    """
+    """Страница чата. Если пользователь не вошёл — отправляем на главную."""
     if "nickname" not in session:
         return redirect(url_for("index"))
 
     conn = get_db()
-    # Евгений (ID 5): берём все сообщения, от старых к новым
     messages = conn.execute(
         "SELECT * FROM messages ORDER BY id ASC"
     ).fetchall()
@@ -119,25 +131,24 @@ def chat():
     return render_template(
         "chat.html",
         nickname=session["nickname"],
-        messages=messages
+        messages=messages,
+        greeting=get_greeting()  # передаём приветствие по времени суток
     )
 
 
 @app.route("/send", methods=["POST"])
 def send():
-    """
-    Принимает сообщение из формы и сохраняет в БД.
-    Илья (ID 3): отправка сообщений.
-    Евгений (ID 7): timestamp записывается здесь.
-    """
+    """Принимает сообщение из формы и сохраняет в БД."""
     if "nickname" not in session:
         return redirect(url_for("index"))
 
     text = request.form.get("message", "").strip()
 
-    if text:  # сохраняем только если сообщение не пустое
-        # Евгений (ID 7): формат времени можно изменить здесь
-        timestamp = datetime.datetime.now().strftime("%d.%m.%Y %H:%M")
+    if text:
+        # Сохраняем дату и время отдельно через разделитель |
+        # Дата нужна для группировки по дням, время — для отображения у сообщения
+        now = datetime.datetime.now()
+        timestamp = now.strftime("%d.%m.%Y|%H:%M")  # формат: "15.04.2026|14:30"
         conn = get_db()
         conn.execute(
             "INSERT INTO messages (nickname, text, timestamp) VALUES (?, ?, ?)",
@@ -165,5 +176,5 @@ def logout():
 # ---------------------------------------------------------------
 
 if __name__ == "__main__":
-    init_db()            # создаём таблицы если их нет
-    app.run(debug=True)  # debug=True — показывает ошибки в браузере
+    init_db()
+    app.run(debug=True)
