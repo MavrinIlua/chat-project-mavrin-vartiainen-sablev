@@ -1,0 +1,61 @@
+/* Общие настройки страницы */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #eef2f7;
+    margin: 0;
+    padding: 20px;
+}
+
+/* Блок сообщений */
+#messages {
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    height: 400px;
+    overflow-y: scroll;  /* прокрутка */
+    border: 1px solid #ddd;
+    margin-bottom: 16px;
+}
+
+/* Один пузырёк сообщения */
+.message {
+    background: #f0f0f0;
+    border-radius: 10px;
+    padding: 8px 14px;
+    margin-bottom: 8px;
+    max-width: 70%;
+    width: fit-content; /* Ширина по содержимому */
+}
+
+/* Свои сообщения — справа, другого цвета */
+.message.mine {
+    background: #dcf8c6; /* Светло-зелёный, как в WhatsApp */
+    margin-left: auto;   /* Главное свойство — выравнивает по правому краю */
+    margin-right: 0;
+    text-align: left;    /* Текст внутри блока остаётся слева */
+}
+
+/* Автор и время — маленькие и серые */
+.message-meta {
+    font-size: 0.75em;
+    color: #aaa;
+    margin-bottom: 4px;
+}
+
+.author {
+    font-weight: bold;
+}
+
+.message-text {
+    margin: 0;
+}
+
+/* На маленьких экранах (телефон) */
+@media (max-width: 600px) {
+    body {
+        padding: 8px;
+    }
+    .message {
+        max-width: 95%;
+    }
+}
