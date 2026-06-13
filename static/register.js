@@ -1,4 +1,4 @@
-// Обработка формы регистрации
+// Обработка формы регистрации (поддержка и JSON и form data)
 $(document).ready(function() {
     $('#registerForm').on('submit', function(e) {
         e.preventDefault();
@@ -26,6 +26,7 @@ $(document).ready(function() {
             type: 'POST',
             contentType: 'application/json',
             data: JSON.stringify(formData),
+            dataType: 'json',
             success: function(response) {
                 if (response.status === 'registered') {
                     // Перенаправление на страницу входа
@@ -36,7 +37,11 @@ $(document).ready(function() {
             },
             error: function(xhr) {
                 const response = xhr.responseJSON;
-                showAuthError(response?.error || 'Ошибка при регистрации');
+                if (response && response.error) {
+                    showAuthError(response.error);
+                } else {
+                    showAuthError('Ошибка при регистрации: ' + xhr.status);
+                }
             }
         });
     });

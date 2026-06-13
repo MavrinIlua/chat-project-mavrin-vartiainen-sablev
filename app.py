@@ -142,7 +142,7 @@ def chat():
     messages = list(reversed(rows))  # переворачиваем — теперь от старых к новым
 
     return render_template(
-        "chat.html",
+        "chat_sqlite.html",
         nickname=session["nickname"],
         messages=messages,
         greeting=get_greeting()  # передаём приветствие по времени суток

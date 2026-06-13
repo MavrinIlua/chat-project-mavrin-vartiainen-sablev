@@ -1,4 +1,4 @@
-// Обработка формы входа
+// Обработка формы входа (поддержка и JSON и form data)
 $(document).ready(function() {
     $('#loginForm').on('submit', function(e) {
         e.preventDefault();
@@ -18,6 +18,7 @@ $(document).ready(function() {
             type: 'POST',
             contentType: 'application/json',
             data: JSON.stringify(formData),
+            dataType: 'json',
             success: function(response) {
                 if (response.success) {
                     window.location.href = response.redirect || '/chat';
@@ -27,7 +28,11 @@ $(document).ready(function() {
             },
             error: function(xhr) {
                 const response = xhr.responseJSON;
-                showAuthError(response?.error || 'Ошибка при входе');
+                if (response && response.error) {
+                    showAuthError(response.error);
+                } else {
+                    showAuthError('Ошибка при входе: проверьте логин и пароль');
+                }
             }
         });
     });

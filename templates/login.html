@@ -8,13 +8,13 @@
 </head>
 <body>
     <div class="auth-card">
-        <h1>Вход в чат</h1>
+        <h2>Вход в чат</h2>
         
         {% if error %}
-            <p class="error-message">{{ error }}</p>
+            <p class="error">{{ error }}</p>
         {% endif %}
         
-        <form id="loginForm" method="POST" action="/login">
+        <form id="loginForm">
             <div class="field-group">
                 <label for="login">Логин</label>
                 <input type="text" id="login" name="login" 
@@ -27,10 +27,10 @@
                        placeholder="••••••••" required autocomplete="current-password">
             </div>
             
-            <button type="submit" id="loginBtn">Войти</button>
+            <button type="submit">Войти</button>
         </form>
         
-        <p class="auth-switch">
+        <p>
             Нет аккаунта? <a href="/register">Зарегистрироваться</a>
         </p>
     </div>
