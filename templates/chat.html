@@ -2,190 +2,106 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Чат</title>
-    <!-- Анна: подключаем стили из static/style.css -->
     <link rel="stylesheet" href="/static/style.css">
-    <style>
-        /*
-            Базовые стили — временные, чтобы чат выглядел читаемо.
-            Анна заменит их на красивые в style.css.
-        */
-
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 700px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        /* Приветствие — небольшое, не огромный h1 */
-        .greeting {
-            font-size: 1.1em;
-            color: #555;
-            margin-bottom: 16px;
-        }
-
-        /* Разделитель даты — показывается один раз при смене дня */
-        .date-divider {
-            text-align: center;
-            color: #aaa;
-            font-size: 0.8em;
-            margin: 12px 0;
-            border-top: 1px solid #eee;
-            padding-top: 8px;
-        }
-
-        /* Одно сообщение — как пузырёк, основа для Анны */
-        .message {
-            margin-bottom: 10px;
-            padding: 8px 12px;
-            background: #f5f5f5;
-            border-radius: 8px;
-            max-width: 80%;
-        }
-
-        /* Строка с автором и временем — мелкая, серая, в одну строку */
-        .message-meta {
-            font-size: 0.75em;
-            color: #999;
-            margin-bottom: 3px;
-        }
-
-        .message-meta .author {
-            font-weight: bold;
-            color: #666;
-        }
-
-        .message-meta .time {
-            margin-left: 8px;
-        }
-
-        /* Текст сообщения — обычный размер */
-        .message-text {
-            font-size: 1em;
-            margin: 0;
-        }
-
-        /* Блок со всеми сообщениями */
-        #messages {
-            border: 1px solid #eee;
-            border-radius: 8px;
-            padding: 12px;
-            min-height: 200px;
-            max-height: 500px;
-            overflow-y: auto;   /* прокрутка если сообщений много */
-            margin-bottom: 16px;
-        }
-
-        /* Форма отправки */
-        #message-form {
-            display: flex;
-            gap: 8px;
-        }
-
-        #message-input {
-            flex: 1;
-            padding: 8px;
-            font-size: 1em;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-        }
-
-        #message-form button {
-            padding: 8px 16px;
-            font-size: 1em;
-        }
-    </style>
 </head>
-<body data-nickname="{{ nickname }}">
-
-    <!--
-        greeting — переменная из app.py, функция get_greeting()
-        Показывает "Доброе утро", "Добрый день" итд по времени суток
-        nickname — ник из сессии
-    -->
-    <p class="greeting">{{ greeting }}, <strong>{{ nickname }}</strong>!</p>
-
-    <!--
-        Блок сообщений.
-        Евгений (ID 5, 7): сюда выводится история из БД.
-        Анна (ID 6): этот блок будет обновляться через JavaScript.
-        id="messages" — Анна обращается к этому блоку из chat.js
-    -->
-    <div id="messages">
-
-        <!--
-            Jinja2 позволяет создавать переменные через namespace.
-            Нам нужно помнить какая дата была у предыдущего сообщения,
-            чтобы не показывать дату каждый раз — только когда день меняется.
-            Обычная переменная внутри цикла Jinja2 не сохраняется между итерациями,
-            поэтому используем namespace — это особенность Jinja2.
-        -->
-        {% set ns = namespace(last_date="") %}
-
-        {% for msg in messages %}
-
-            <!--
-                timestamp хранится в формате "15.04.2026|14:30"
-                Разбиваем по символу | чтобы получить дату и время отдельно
-                msg.timestamp.split("|")[0] → "15.04.2026"
-                msg.timestamp.split("|")[1] → "14:30"
-            -->
-            {% set date_part = msg.timestamp.split("|")[0] %}
-            {% set time_part = msg.timestamp.split("|")[1] %}
-
-            <!--
-                Показываем разделитель с датой только если день изменился
-                В первый раз ns.last_date пустая — значит всегда покажем дату первого сообщения
-            -->
-            {% if date_part != ns.last_date %}
-                <div class="date-divider">{{ date_part }}</div>
-                {% set ns.last_date = date_part %}
-            {% endif %}
-
-            <!-- Одно сообщение -->
-            <div class="message">
-                <!-- Автор и время — мелко, в одну строку -->
-                <div class="message-meta">
-                    <span class="author">{{ msg.nickname }}</span>
-                    <span class="time">{{ time_part }}</span>
+<body data-nickname="{{ owner.login if owner else '' }}">
+    <div class="chat-container">
+        <!-- Левая панель: список пользователей -->
+        <div class="chat-sidebar">
+            <div class="user-profile">
+                <div class="profile-avatar">{{ owner.name[0] if owner else '?' }}{{ owner.surname[0] if owner else '?' }}</div>
+                <div class="profile-info">
+                    <div class="profile-name">{{ owner.name }} {{ owner.surname }}</div>
+                    <div class="profile-login">@{{ owner.login }}</div>
                 </div>
-                <!-- Текст сообщения -->
-                <p class="message-text">{{ msg.text }}</p>
+                <a href="/logout" class="logout-btn" title="Выйти">🚪</a>
             </div>
-
-        {% endfor %}
-
-        {% if messages | length == 0 %}
-            <p style="color: #aaa; text-align: center;">Сообщений пока нет. Напиши первым!</p>
-        {% endif %}
-
+            
+            <div class="search-box">
+                <input type="text" id="userSearch" placeholder="Поиск собеседника...">
+            </div>
+            
+            <div class="users-list" id="usersList">
+                {% if all_users %}
+                    {% for user in all_users %}
+                    <div class="user-item {{ 'active' if deliver and user.id == deliver.id else '' }}" 
+                         data-user-id="{{ user.id }}" 
+                         data-user-name="{{ user.name }} {{ user.surname }}"
+                         data-user-login="{{ user.login }}">
+                        <div class="user-avatar">{{ user.name[0] }}{{ user.surname[0] }}</div>
+                        <div class="user-info">
+                            <div class="user-name">{{ user.name }} {{ user.surname }}</div>
+                            <div class="user-login">@{{ user.login }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">Нет других пользователей</div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Правая панель: активный чат -->
+        <div class="chat-main">
+            {% if deliver %}
+            <div class="chat-header">
+                <div class="contact-info">
+                    <div class="contact-avatar">{{ deliver.name[0] }}{{ deliver.surname[0] }}</div>
+                    <div class="contact-details">
+                        <div class="contact-name">{{ deliver.name }} {{ deliver.surname }}</div>
+                        <div class="contact-status">● Онлайн</div>
+                    </div>
+                </div>
+                <div class="chat-actions">
+                    <span class="action-btn" title="Звонок">📞</span>
+                    <span class="action-btn" title="Видеосвязь">📹</span>
+                    <span class="action-btn" title="Поиск">🔍</span>
+                </div>
+            </div>
+            
+            <div class="messages-area" id="messagesArea">
+                {% if messages %}
+                    {% for msg in messages %}
+                    <div class="message {{ 'sent' if msg.owner_id == owner.id else 'received' }}" 
+                         data-message-id="{{ msg.id }}">
+                        <div class="message-content">
+                            <div class="message-text">{{ msg.text }}</div>
+                            <div class="message-meta">
+                                <span class="message-time">
+                                    {{ msg.timestamp.strftime('%H:%M') if msg.timestamp else '00:00' }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-chat">
+                        <div class="empty-icon">💬</div>
+                        <p>Начните переписку с {{ deliver.name }}</p>
+                        <p class="empty-subtitle">Выберите собеседника слева и напишите первым 📩</p>
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="message-input-container">
+                <input type="text" id="messageInput" placeholder="Напишите сообщение..." maxlength="1000">
+                <button id="sendButton" class="send-btn">➤</button>
+            </div>
+            {% else %}
+            <!-- Выбор собеседника -->
+            <div class="select-conversation">
+                <div class="select-icon">👥</div>
+                <h2>Выберите собеседника</h2>
+                <p class="select-hint">Нажмите на пользователя в списке слева, чтобы начать переписку</p>
+            </div>
+            {% endif %}
+        </div>
     </div>
-
-    <!--
-        Форма отправки (Илья — ID 3).
-        id="message-form"  — Анна использует в chat.js
-        id="message-input" — Анна использует в chat.js
-    -->
-    <form action="/send" method="post" id="message-form">
-        <input type="text"
-            name="message"
-            id="message-input"
-            placeholder="Написать сообщение..."
-            autocomplete="off"
-            maxlength="500"
-            required>
-        <button type="submit">Отправить</button>
-    </form>
-
-    <br>
-    <a href="/logout" style="color: #aaa; font-size: 0.9em;">Выйти из чата</a>
-
-    <!--
-        Анна (ID 6): скрипт динамической отправки.
-        Пока chat.js пустой — работает с перезагрузкой страницы, это нормально.
-    -->
+    
+    <!-- JavaScript для динамического чата -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script src="/static/chat.js"></script>
-
 </body>
 </html>

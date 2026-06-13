@@ -1,77 +1,141 @@
-// Находим форму и поле ввода на странице
-const form = document.getElementById("message-form");
-const input = document.getElementById("message-input");
-const messagesDiv = document.getElementById("messages");
+// Динамический чат через AJAX
 
-// Получаем никнейм текущего пользователя из data-атрибута в HTML
-const currentUserNickname = document.body.dataset.nickname;
-
-// Функция загружает сообщения с сервера и обновляет блок #messages
-function loadMessages() {
-    fetch("/messages")                          // тихий запрос к серверу
-        .then(response => response.json())      // превращаем ответ в массив
-        .then(messages => {
-            messagesDiv.innerHTML = "";         // очищаем блок
-            let lastDate = "";
-
-            messages.forEach(msg => {
-                const parts = msg.timestamp.split("|");
-                const date = parts[0];
-                const time = parts[1];
-
-                // Показываем разделитель с датой только когда день меняется
-                if (date !== lastDate) {
-                    const divider = document.createElement("div");
-                    divider.className = "date-divider";
-                    divider.textContent = date;
-                    messagesDiv.appendChild(divider);
-                    lastDate = date;
-                }
-
-                // Создаём пузырёк сообщения
-                const div = document.createElement("div");
-                div.className = "message";
-
-                // Если автор сообщения — текущий пользователь, добавляем класс "mine"
-                if (msg.nickname === currentUserNickname) {
-                    div.classList.add("mine");
-                }
-
-                div.innerHTML = `
-                    <div class="message-meta">
-                        <span class="author">${msg.nickname}</span>
-                        <span class="time">${time}</span>
-                    </div>
-                    <p class="message-text">${msg.text}</p>
-                `;
-                messagesDiv.appendChild(div);
-            });
-
-            // Прокручиваем вниз к последним сообщениям
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        });
-}
-
-// Перехватываем отправку формы — не даём странице перезагрузиться
-form.addEventListener("submit", function(e) {
-    e.preventDefault();  // отменяем стандартное поведение формы
-
-    const text = input.value.trim();
-    if (!text) return;
-
-    // Отправляем сообщение на сервер тихо
-    fetch("/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: "message=" + encodeURIComponent(text)
-    }).then(() => {
-        input.value = "";    // очищаем поле ввода
-        loadMessages();      // обновляем список сообщений
+$(document).ready(function() {
+    let currentDeliverId = null;
+    let messageInput = $('#messageInput');
+    
+    // Выбор собеседника
+    $('.user-item').on('click', function() {
+        const userId = $(this).data('user-id');
+        const userName = $(this).data('user-name');
+        
+        // Обновление активного пользователя
+        $('.user-item').removeClass('active');
+        $(this).addClass('active');
+        
+        // Обновление URL
+        const url = new URL(window.location);
+        url.searchParams.set('id', userId);
+        window.history.pushState({}, '', url);
+        
+        loadMessages(userId);
     });
+    
+    // Отправка сообщения
+    $('#sendButton').on('click', sendMessage);
+    
+    messageInput.on('keypress', function(e) {
+        if (e.which === 13) {  // Enter
+            sendMessage();
+        }
+    });
+    
+    // Загрузка сообщений
+    function loadMessages(deliverId) {
+        currentDeliverId = deliverId;
+        
+        $.ajax({
+            url: '/messages',
+            method: 'GET',
+            data: { with: deliverId },
+            success: function(messages) {
+                renderMessages(messages);
+            },
+            error: function() {
+                console.error('Ошибка загрузки сообщений');
+            }
+        });
+    }
+    
+    // Рендер сообщений
+    function renderMessages(messages) {
+        const $messagesArea = $('#messagesArea');
+        $messagesArea.empty();
+        
+        if (messages.length === 0) {
+            const deliverName = $('.user-item[data-user-id="' + currentDeliverId + '"] .user-name').text();
+            $messagesArea.html(`
+                <div class="empty-chat">
+                    <div class="empty-icon">💬</div>
+                    <p>Начните переписку с ${deliverName}</p>
+                    <p class="empty-subtitle">Выберите собеседника слева и напишите первым 📩</p>
+                </div>
+            `);
+            return;
+        }
+        
+        messages.forEach(msg => {
+            const isSent = msg.owner_id === parseInt(messages[0]?.owner_id) || 
+                          msg.owner_id === parseInt($('.chat-container').data('nickname-id'));
+            
+            // Определение имени автора
+            const ownerName = msg.owner_name ? `${msg.owner_name} ${msg.owner_surname}` : 'Пользователь';
+            
+            const $message = $(`
+                <div class="message ${isSent ? 'sent' : 'received'}" data-message-id="${msg.id}">
+                    <div class="message-content">
+                        <div class="message-text">${escapeHtml(msg.text)}</div>
+                        <div class="message-meta">
+                            <span class="message-time">${formatTime(msg.timestamp)}</span>
+                        </div>
+                    </div>
+                </div>
+            `);
+            $messagesArea.append($message);
+        });
+        
+        // Прокрутка вниз
+        $messagesArea.scrollTop($messagesArea[0].scrollHeight);
+    }
+    
+    // Отправка сообщения
+    function sendMessage() {
+        const text = messageInput.val().trim();
+        
+        if (!text || !currentDeliverId) return;
+        
+        $.ajax({
+            url: '/send',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                deliver_id: currentDeliverId,
+                text: text
+            }),
+            success: function(response) {
+                if (response.success) {
+                    messageInput.val('');
+                    loadMessages(currentDeliverId);
+                }
+            },
+            error: function() {
+                console.error('Ошибка отправки сообщения');
+            }
+        });
+    }
+    
+    // Вспомогательные функции
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    function formatTime(timestamp) {
+        if (!timestamp) return '00:00';
+        
+        const date = new Date(timestamp);
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${hours}:${minutes}`;
+    }
+    
+    // Автоматическая загрузка при открытии чата
+    const urlParams = new URLSearchParams(window.location.search);
+    const deliverId = urlParams.get('id');
+    
+    if (deliverId) {
+        loadMessages(parseInt(deliverId));
+        $('.user-item[data-user-id="' + deliverId + '"]').addClass('active');
+    }
 });
-
-// Загружаем сообщения при открытии страницы
-loadMessages();
-
-// Обновляем каждые 3 секунды — чтобы видеть сообщения других пользователей
-setInterval(loadMessages, 3000);
