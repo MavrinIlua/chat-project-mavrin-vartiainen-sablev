@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Вход в чат</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 400px;
+            margin: 80px auto;
+            padding: 20px;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 12px;
+            font-size: 1em;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            font-size: 1em;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Добро пожаловать в чат</h2>
+
+    {% if error %}
+        <p style="color: red;">{{ error }}</p>
+    {% endif %}
+
+    <form id="login-form">
+        <input type="text" id="login" name="login" placeholder="Логин" required>
+        <input type="password" id="password" name="password" placeholder="Пароль" required>
+        <button type="submit">Войти</button>
+    </form>
+
+    <p style="color: #aaa; font-size: 0.85em; margin-top: 16px;">
+        Первый раз в чате? <a href="{{ url_for('register') }}">Зарегистрироваться</a>
+    </p>
+
+    <script>
+        document.getElementById('login-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const login = document.getElementById('login').value;
+            const password = document.getElementById('password').value;
+            
+            const response = await fetch('/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ login, password })
+            });
+            
+            const data = await response.json();
+            if (data.result) {
+                window.location.href = '/chat';
+            } else {
+                alert(data.message);
+            }
+        });
+    </script>
+
+</body>
+</html>

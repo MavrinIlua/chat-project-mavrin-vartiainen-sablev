@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Чат</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .greeting {
+            font-size: 1.1em;
+            color: #555;
+            margin-bottom: 16px;
+        }
+        .date-divider {
+            text-align: center;
+            color: #aaa;
+            font-size: 0.8em;
+            margin: 12px 0;
+            border-top: 1px solid #eee;
+            padding-top: 8px;
+        }
+        .message {
+            margin-bottom: 10px;
+            padding: 8px 12px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            max-width: 80%;
+        }
+        .message-meta {
+            font-size: 0.75em;
+            color: #999;
+            margin-bottom: 3px;
+        }
+        .message-meta .author {
+            font-weight: bold;
+            color: #666;
+        }
+        .message-meta .time {
+            margin-left: 8px;
+        }
+        .message-text {
+            font-size: 1em;
+            margin: 0;
+        }
+        #messages {
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 12px;
+            min-height: 200px;
+            max-height: 500px;
+            overflow-y: auto;
+            margin-bottom: 16px;
+        }
+        #message-form {
+            display: flex;
+            gap: 8px;
+        }
+        #message-input {
+            flex: 1;
+            padding: 8px;
+            font-size: 1em;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+        #message-form button {
+            padding: 8px 16px;
+            font-size: 1em;
+        }
+    </style>
+</head>
+<body data-nickname="{{ nickname }}">
+
+    <p class="greeting">{{ greeting }}, <strong>{{ nickname }}</strong>!</p>
+
+    <div id="messages">
+        {% set ns = namespace(last_date="") %}
+        {% for msg in messages %}
+            {% set date_part = msg.timestamp.split("|")[0] if msg.timestamp else "" %}
+            {% set time_part = msg.timestamp.split("|")[1] if msg.timestamp else "" %}
+            
+            {% if date_part != ns.last_date %}
+                <div class="date-divider">{{ date_part }}</div>
+                {% set ns.last_date = date_part %}
+            {% endif %}
+            
+            <div class="message {{ 'mine' if msg.nickname == nickname else '' }}">
+                <div class="message-meta">
+                    <span class="author">{{ msg.nickname }}</span>
+                    <span class="time">{{ time_part }}</span>
+                </div>
+                <p class="message-text">{{ msg.text }}</p>
+            </div>
+        {% endfor %}
+
+        {% if messages | length == 0 %}
+            <p style="color: #aaa; text-align: center;">Сообщений пока нет. Напиши первым!</p>
+        {% endif %}
+    </div>
+
+    <form action="/send" method="post" id="message-form">
+        <input type="text"
+            name="message"
+            id="message-input"
+            placeholder="Написать сообщение..."
+            autocomplete="off"
+            maxlength="500"
+            required>
+        <button type="submit">Отправить</button>
+    </form>
+
+    <br>
+    <a href="/logout" style="color: #aaa; font-size: 0.9em;">Выйти из чата</a>
+
+    <script src="/static/chat.js"></script>
+
+</body>
+</html>

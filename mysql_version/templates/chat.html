@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Чат 1-на-1</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        .users-sidebar {
+            width: 250px;
+            background: #f5f5f5;
+            border-right: 1px solid #ddd;
+            padding: 16px;
+            overflow-y: auto;
+        }
+        
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .chat-header {
+            padding: 16px;
+            background: #fff;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .greeting {
+            font-size: 1.1em;
+            color: #555;
+            margin-bottom: 8px;
+        }
+        
+        #messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            background: #f9f9f9;
+        }
+        
+        .message {
+            margin-bottom: 12px;
+            padding: 10px 14px;
+            background: #fff;
+            border-radius: 8px;
+            max-width: 80%;
+        }
+        
+        .message.mine {
+            background: #dcf8c6;
+            margin-left: auto;
+            text-align: left;
+        }
+        
+        .message-meta {
+            font-size: 0.75em;
+            color: #aaa;
+            margin-bottom: 4px;
+        }
+        
+        .message-meta .author {
+            font-weight: bold;
+            color: #666;
+        }
+        
+        .message-text {
+            margin: 0;
+            font-size: 1em;
+        }
+        
+        .date-divider {
+            text-align: center;
+            color: #aaa;
+            font-size: 0.8em;
+            margin: 16px 0;
+            border-top: 1px solid #eee;
+            padding-top: 8px;
+        }
+        
+        .user-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            background: #fff;
+            border-radius: 6px;
+            cursor: pointer;
+            border: 1px solid #ddd;
+        }
+        
+        .user-item:hover {
+            background: #e9e9e9;
+        }
+        
+        .user-item.active {
+            background: #dcf8c6;
+            border-color: #cbe3ac;
+        }
+        
+        .user-name {
+            font-weight: bold;
+            display: block;
+        }
+        
+        .user-login {
+            font-size: 0.85em;
+            color: #666;
+        }
+        
+        #message-form {
+            display: flex;
+            gap: 8px;
+            padding: 16px;
+            background: #fff;
+            border-top: 1px solid #ddd;
+        }
+        
+        #message-input {
+            flex: 1;
+            padding: 8px;
+            font-size: 1em;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+        
+        #message-form button {
+            padding: 8px 16px;
+            font-size: 1em;
+        }
+        
+        .sidebar-title {
+            font-weight: bold;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #ddd;
+        }
+        
+        #logout-btn {
+            margin-top: 16px;
+            padding: 8px 16px;
+            background: #f44336;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+        }
+        
+        #logout-btn:hover {
+            background: #d32f2f;
+        }
+    </style>
+</head>
+<body data-user-id="{{ current_user.id }}">
+
+    <div class="container">
+        <!-- Список пользователей -->
+        <div class="users-sidebar">
+            <div class="sidebar-title">Пользователи</div>
+            <div class="user-item active" onclick="selectUser(null)">
+                <span class="user-name">Все пользователи</span>
+                <span class="user-login">Общий чат</span>
+            </div>
+            {% for user in all_users %}
+            <div class="user-item" 
+                 onclick="selectUser({{ user.id }})" 
+                 id="user-{{ user.id }}"
+                 {% if chosen_user and user.id == chosen_user.id %}class="active"{% endif %}>
+                <span class="user-name">{{ user.name }} {{ user.surname }}</span>
+                <span class="user-login">{{ user.login }}</span>
+            </div>
+            {% endfor %}
+            <button id="logout-btn">Выйти</button>
+        </div>
+        
+        <!-- Область чата -->
+        <div class="chat-area">
+            <div class="chat-header">
+                <p class="greeting">{{ greeting }}, <strong>{{ current_user.name }}</strong>!</p>
+                {% if chosen_user %}
+                    <h3 style="margin: 0;">Чат с {{ chosen_user.name }} {{ chosen_user.surname }}</h3>
+                {% else %}
+                    <h3 style="margin: 0;">Выберите собеседника для чата</h3>
+                {% endif %}
+            </div>
+            
+            <div id="messages">
+                {% if messages | length == 0 %}
+                    <p style="color: #aaa; text-align: center; margin-top: 40px;">Начните диалог первым!</p>
+                {% else %}
+                    {% set ns = namespace(last_date="") %}
+                    {% for msg in messages %}
+                        {% set date_part = msg.created_at.strftime("%d.%m.%Y") if msg.created_at else "" %}
+                        {% set time_part = msg.created_at.strftime("%H:%M") if msg.created_at else "" %}
+                        
+                        {% if date_part != ns.last_date %}
+                            <div class="date-divider">{{ date_part }}</div>
+                            {% set ns.last_date = date_part %}
+                        {% endif %}
+                        
+                        {% set is_mine = 'mine' if msg.sender_id == current_user.id else '' %}
+                        <div class="message {{ is_mine }}">
+                            <div class="message-meta">
+                                <span class="author">{{ msg.sender_login if msg.sender_login else msg.sender_name }}</span>
+                                <span class="time">{{ time_part }}</span>
+                            </div>
+                            <p class="message-text">{{ msg.text }}</p>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+            
+            <form id="message-form">
+                <input type="text" id="message-input" placeholder="Написать сообщение..." autocomplete="off" maxlength="500" required>
+                <button type="submit">Отправить</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const currentUser_id = document.body.dataset.user_id;
+        let selectedUser_id = {{ chosen_user.id if chosen_user else 'null' }};
+        const messagesDiv = document.getElementById('messages');
+
+        // Загрузка сообщений
+        async function loadMessages() {
+            if (!selectedUser_id) return;
+            
+            const response = await fetch(`/get_messages?user_id=${selectedUser_id}`);
+            const messages = await response.json();
+            
+            messagesDiv.innerHTML = '';
+            let lastDate = '';
+            
+            messages.forEach(msg => {
+                const datePart = msg.created_at ? msg.created_at.split('T')[0].split('-').reverse().join('.') : '';
+                const timePart = msg.created_at ? msg.created_at.split('T')[1].split(':')[0] + ':' + msg.created_at.split('T')[1].split(':')[1] : '';
+                
+                if (datePart !== lastDate) {
+                    const divider = document.createElement('div');
+                    divider.className = 'date-divider';
+                    divider.textContent = datePart;
+                    messagesDiv.appendChild(divider);
+                    lastDate = datePart;
+                }
+                
+                const div = document.createElement('div');
+                div.className = 'message ' + (msg.sender_id == currentUser_id ? 'mine' : '');
+                div.innerHTML = `
+                    <div class="message-meta">
+                        <span class="author">${msg.sender_login || msg.sender_name}</span>
+                        <span class="time">${timePart}</span>
+                    </div>
+                    <p class="message-text">${msg.text}</p>
+                `;
+                messagesDiv.appendChild(div);
+            });
+            
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // Отправка сообщения
+        document.getElementById('message-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const text = document.getElementById('message-input').value.trim();
+            if (!text || !selectedUser_id) return;
+            
+            await fetch('/send_message', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ receiver_id: selectedUser_id, text })
+            });
+            
+            document.getElementById('message-input').value = '';
+            loadMessages();
+        });
+
+        // Выбор собеседника
+        window.selectUser = function(userId) {
+            selectedUser_id = userId;
+            
+            // Обновляем классы активности
+            document.querySelectorAll('.user-item').forEach(item => {
+                if (item.id && item.id !== 'logout-btn') {
+                    item.classList.remove('active');
+                }
+            });
+            
+            if (userId) {
+                document.getElementById('user-' + userId).classList.add('active');
+            } else {
+                document.querySelector('.user-item').classList.add('active');
+            }
+            
+            loadMessages();
+        };
+
+        // Выход
+        document.getElementById('logout-btn').addEventListener('click', function() {
+            window.location.href = '/logout';
+        });
+
+        // Загрузка при старте
+        if (selectedUser_id) {
+            loadMessages();
+        }
+        
+        // Обновление каждые 3 секунды
+        setInterval(loadMessages, 3000);
+    </script>
+
+</body>
+</html>
