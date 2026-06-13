@@ -4,12 +4,12 @@ const input = document.getElementById("message-input");
 const messagesDiv = document.getElementById("messages");
 
 // Получаем никнейм текущего пользователя из data-атрибута в HTML
-const currentUserNickname = document.body.dataset.nickname;
+const currentNickname = document.body.dataset.nickname || "";
 
 // Функция загружает сообщения с сервера и обновляет блок #messages
 function loadMessages() {
-    fetch("/messages")                          // тихий запрос к серверу
-        .then(response => response.json())      // превращаем ответ в массив
+    fetch("/messages")
+        .then(response => response.json())
         .then(messages => {
             messagesDiv.innerHTML = "";         // очищаем блок
             let lastDate = "";
@@ -33,7 +33,7 @@ function loadMessages() {
                 div.className = "message";
 
                 // Если автор сообщения — текущий пользователь, добавляем класс "mine"
-                if (msg.nickname === currentUserNickname) {
+                if (msg.nickname === currentNickname) {
                     div.classList.add("mine");
                 }
 
@@ -49,26 +49,33 @@ function loadMessages() {
 
             // Прокручиваем вниз к последним сообщениям
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        })
+        .catch(error => {
+            console.error('Ошибка загрузки сообщений:', error);
         });
 }
 
 // Перехватываем отправку формы — не даём странице перезагрузиться
-form.addEventListener("submit", function(e) {
-    e.preventDefault();  // отменяем стандартное поведение формы
+if (form && input) {
+    form.addEventListener("submit", function(e) {
+        e.preventDefault();  // отменяем стандартное поведение формы
 
-    const text = input.value.trim();
-    if (!text) return;
+        const text = input.value.trim();
+        if (!text) return;
 
-    // Отправляем сообщение на сервер тихо
-    fetch("/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: "message=" + encodeURIComponent(text)
-    }).then(() => {
-        input.value = "";    // очищаем поле ввода
-        loadMessages();      // обновляем список сообщений
+        // Отправляем сообщение на сервер тихо
+        fetch("/send", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: "message=" + encodeURIComponent(text)
+        }).then(() => {
+            input.value = "";    // очищаем поле ввода
+            loadMessages();      // обновляем список сообщений
+        }).catch(error => {
+            console.error('Ошибка при отправке:', error);
+        });
     });
-});
+}
 
 // Загружаем сообщения при открытии страницы
 loadMessages();

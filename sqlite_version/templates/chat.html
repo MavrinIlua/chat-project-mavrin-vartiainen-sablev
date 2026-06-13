@@ -1,11 +1,11 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <title>Чат</title>
-    <link rel="stylesheet" href="/static/style.css">
+{% extends "base.html" %}
+
+{% block title %}Чат{% endblock %}
+
+{% block styles %}
+    {{ super() }}
     <style>
-        body {
+        .container {
             font-family: Arial, sans-serif;
             max-width: 700px;
             margin: 0 auto;
@@ -72,9 +72,9 @@
             font-size: 1em;
         }
     </style>
-</head>
-<body data-nickname="{{ nickname }}">
+{% endblock %}
 
+{% block content %}
     <p class="greeting">{{ greeting }}, <strong>{{ nickname }}</strong>!</p>
 
     <div id="messages">
@@ -115,8 +115,9 @@
 
     <br>
     <a href="/logout" style="color: #aaa; font-size: 0.9em;">Выйти из чата</a>
+{% endblock %}
 
-    <script src="/static/chat.js"></script>
-
-</body>
-</html>
+{% block scripts %}
+    {{ super() }}
+    <!-- chat.js already included in base.html -->
+{% endblock %}

@@ -22,15 +22,15 @@
 ┌────────────────────────────┼──────────────────────────────────────┐
 │                    FLASK SERVER (Python)                         │
 │  ┌──────────────────────────────────────────────────────────┐    │
-│  │  app.py                                                  │    │
+│  │  app_local.py / app.py                                   │    │
 │  │  ┌──────────────┐  ┌──────────────┐  ┌────────────────┐  │    │
 │  │  │  Routes      │  │  Sessions    │  │  Database      │  │    │
-│  │  │  (routes)    │  │  (session)   │  │  (MySQL)       │  │    │
+│  │  │  (routes)    │  │  (session)   │  │  (SQLite/MySQL)│  │    │
 │  │  └──────┬───────┘  └──────┬───────┘  └────────────────┘  │    │
 │  │         │                 │                               │    │
 │  └─────────┼─────────────────┼───────────────────────────────┘    │
 │            │                 │                                     │
-│       HTTP Response    Session Cookie                      MySQL  │
+│       HTTP Response    Session Cookie                      DB     │
 └────────────────────────────┼──────────────────────────────────────┘
                              │
 ┌────────────────────────────┼──────────────────────────────────────┐
@@ -49,116 +49,142 @@
 
 ## 2️⃣ Структура приложения
 
-### Вариант 1: SQLite (простой, локальный)
+### Корневая структура
 
 ```
-sqlite_version/
+├── mysql_version/              # Версия с MySQL (и SQLite для локальной работы)
+│   ├── app_local.py            # Главный файл Flask ( SQLite)
+│   ├── .env.example            # Пример конфигурации
+│   ├── templates/              # HTML-шаблоны
+│   │   ├── authorization.html  # Страница входа (с вкладками)
+│   │   └── chat.html           # Страница чата 1-на-1
+│   ├── static/
+│   │   └── style.css           # CSS-стили (современный дизайн)
+│   └── chat_1to1.db            # База данных SQLite (файл)
 │
-├── app.py                      # Главный файл Flask
+├── sqlite_version/             # Упрощенная SQLite-версия
+│   ├── app.py                  # Главный файл Flask
+│   ├── templates/
+│   │   ├── index.html          # Страница входа
+│   │   ├── registration.html   # Страница регистрации
+│   │   └── chat.html           # Страница чата
+│   ├── static/
+│   │   └── style.css           # CSS-стили
+│   └── chat.db                 # База данных SQLite (файл)
 │
-├── templates/                  # HTML-шаблоны
-│   ├── index.html             # Страница входа
-│   ├── registration.html      # Страница регистрации
-│   └── chat.html              # Страница чата
-│
-├── static/
-│   ├── style.css              # CSS-стили
-│   └── chat.js                # JavaScript для AJAX
-│
-└── chat.db                     # База данных SQLite (файл)
-```
-
-**Архитектура:**
-- **Single-tier** или **2-tier** архитектура
-- Данные хранятся в локальном файле `chat.db`
-- Подходит для разработки и тестирования
-
-### Вариант 2: MySQL (продакшн, серверный)
-
-```
-mysql_version/
-│
-├── app.py                      # Главный файл Flask
-│
-├── templates/                  # HTML-шаблоны
-│   ├── authorization.html     # Страница входа
-│   ├── registration.html      # Страница регистрации
-│   └── chat.html              # Страница чата 1-на-1
-│
-├── static/
-│   └── style.css              # CSS-стили
-│
-└── .env                        # Конфигурация (НЕ включён в Git!)
+├── ARCHITECTURE.md             # Документация архитектуры
+├── README.md                   # Общая инструкция
+└── .gitignore
 ```
 
 **Архитектура:**
-- **3-tier** архитектура
-- **Web Server (Flask)** ←→ **Database Server (MySQL)**
-- Подходит для продакшн-развертывания
+- **2-tier** архитектура (Flask + Database)
+- Обе версии используют SQLite для локальной разработки
+- `mysql_version` содержит код для подключения к MySQL (можно перенастроить)
+- `sqlite_version` — упрощенная версия с отдельными страницами входа/регистрации
 
 ---
 
-## 3️⃣ Модульная структура app.py
+## 3️⃣ Модульная структура app_local.py
 
 ```
-app.py
+app_local.py
 │
-├── Import statements          # Импорты Flask, MySQL, datetime
+├── Import statements          # Импорты Flask, sqlite3, os
 │
 ├── Flask app initialization   # app = Flask(__name__)
 │
-├── Configuration              # SECRET_KEY, DB connection
+├── Configuration              # SECRET_KEY
 │   │
-│   └── get_db()              # Подключение к MySQL
+│   └── get_db()              # Подключение к SQLite (chat_1to1.db)
 │   └── close_db()            # Закрытие соединения
 │
 ├── Helper functions           # Вспомогательные функции
 │   │
+│   └── init_db()             # Создание таблиц при первом запуске
 │   └── get_greeting()        # Приветствие по времени
 │
 ├── Routes (MVC Controller)    # Маршруты (контроллеры)
 │   │
-│   ├── /                      # Главная страница
-│   ├── /register              # Регистрация (POST/GET)
-│   ├── /login                 # Вход (POST/GET)
-│   ├── /chat                  # Страница чата
-│   ├── /send_message          # Отправка сообщения
-│   ├── /get_messages          # Получение сообщений
-│   └── /logout                # Выход
+│   ├── /                      # Главная страница (перенаправление)
+│   ├── /login                 # Вход (POST/GET) — JSON API
+│   ├── /register              # Регистрация (POST/GET) — перенаправление
+│   ├── /chat                  # Страница чата (GET)
+│   ├── /send_message          # Отправка сообщения (POST JSON)
+│   ├── /get_messages          # Получение сообщений (GET JSON)
+│   └── /logout                # Выход (GET)
 │
 └── Main block                 # Запуск сервера
     │
     └── if __name__ == "__main__":
-        └── app.run(debug=True)
+        └── app.run(debug=True, port=5001)
 ```
 
 ---
 
-## 4️⃣ Модели данных (Database Schema)
+## 4️⃣ Модульная структура app.py (sqlite_version)
+
+```
+app.py
+│
+├── Import statements          # Импорты Flask, sqlite3, os
+│
+├── Flask app initialization   # app = Flask(__name__)
+│
+├── Configuration              # SECRET_KEY
+│   │
+│   └── get_db()              # Подключение к SQLite (chat.db)
+│   └── close_db()            # Закрытие соединения
+│
+├── Helper functions           # Вспомогательные функции
+│   │
+│   └── init_db()             # Создание таблиц при первом запуске
+│   └── get_greeting()        # Приветствие по времени
+│
+├── Routes (MVC Controller)    # Маршруты (контроллеры)
+│   │
+│   ├── /                      # Главная страница (перенаправление)
+│   ├── /index                 # Страница входа (GET)
+│   ├── /login                 # Вход (POST JSON)
+│   ├── /register              # Регистрация (POST/GET)
+│   ├── /chat                  # Страница чата (GET)
+│   ├── /send_message          # Отправка сообщения (POST JSON)
+│   ├── /get_messages          # Получение сообщений (GET JSON)
+│   └── /logout                # Выход (GET)
+│
+└── Main block                 # Запуск сервера
+    │
+    └── if __name__ == "__main__":
+        └── app.run(debug=True, port=5000)
+```
+
+---
+
+## 5️⃣ Модели данных (Database Schema)
 
 ### Таблица users
 
 | Поле | Тип | Описание | Ограничения |
 |------|-----|----------|-------------|
-| id | INT | Уникальный ID | PK, AUTO_INCREMENT |
-| name | VARCHAR(100) | Имя | NOT NULL |
-| surname | VARCHAR(100) | Фамилия | NOT NULL |
-| login | VARCHAR(50) | Логин | UNIQUE, NOT NULL |
-| password | VARCHAR(255) | Пароль | NOT NULL |
+| id | INTEGER | Уникальный ID | PRIMARY KEY, AUTOINCREMENT |
+| name | TEXT | Имя | NOT NULL |
+| surname | TEXT | Фамилия | NOT NULL |
+| login | TEXT | Логин | UNIQUE, NOT NULL |
+| password | TEXT | Пароль (plaintext) | NOT NULL |
 
 ### Таблица messages
 
 | Поле | Тип | Описание | Ограничения |
 |------|-----|----------|-------------|
-| id | INT | Уникальный ID | PK, AUTO_INCREMENT |
-| sender_id | INT | ID отправителя | FK → users.id |
-| receiver_id | INT | ID получателя | FK → users.id |
+| id | INTEGER | Уникальный ID | PRIMARY KEY, AUTOINCREMENT |
+| sender_id | INTEGER | ID отправителя | NOT NULL, FOREIGN KEY |
+| receiver_id | INTEGER | ID получателя | NOT NULL, FOREIGN KEY |
 | text | TEXT | Текст сообщения | NOT NULL |
-| created_at | DATETIME | Дата и время | NOT NULL |
+| created_at | TEXT | Дата и время | NOT NULL |
 
 ---
 
-## 5️⃣ Поток данных (Data Flow)
+## 6️⃣ Поток данных (Data Flow)
 
 ```
 ┌─────────────┐
@@ -168,13 +194,13 @@ app.py
        ├──────────────►
        │                 Flask
        │ 2. POST /login  ┌─────────────────┐
-       ├────────────────►│  app.py         │
+       ├────────────────►│  app_local.py   │
        │                 │  - check login  │
        │                 │  - check pwd    │
        │                 └─────────┬───────┘
        │                           │
        │                 ┌─────────▼───────┐
-       │                 │  MySQL DB       │
+       │                 │  SQLite DB      │
        │                 │  - users table  │
        │                 └─────────┬───────┘
        │                           │
@@ -190,7 +216,7 @@ app.py
        │                 └─────────┬───────┘
        │                           │
        │                 ┌─────────▼───────┐
-       │                 │  MySQL DB       │
+       │                 │  SQLite DB      │
        │                 │  - messages     │
        │                 └─────────────────┘
        │
@@ -200,64 +226,58 @@ app.py
 
 ---
 
-## 6️⃣ Системные требования
+## 7️⃣ Системные требования
 
-### SQLite-версия
+### SQLite-версия (mysql_version)
 - Python 3.12+
 - Flask 2.3+
 - werkzeug 3.0+
 
-### MySQL-версия
+### SQLite-версия (sqlite_version)
 - Python 3.12+
 - Flask 2.3+
-- mysql-connector-python 8.0+
-- python-dotenv 1.0+
-- MySQL Server 5.7+ или XAMPP
+- werkzeug 3.0+
 
 ---
 
-## 7️⃣ Проблемы безопасности
+## 8️⃣ Проблемы безопасности
 
 ### 🔴 КРИТИЧЕСКИЕ (ИСПРАВЛЕНО):
 
 1. **Файл `.env` в репозитории** — Contains real database credentials
    - **Решение**: Добавлен `.gitignore` и файл извлечён из Git history
 
-2. **Файл `chat.db` в репозитории** — Contains user data
+2. **Файл `chat.db`/`chat_1to1.db` в репозитории** — Contains user data
    - **Решение**: Добавлен в `.gitignore`
 
 ### 🟡 ВАЖНЫЕ:
 
-1. **Пароли в коде** —不应 хранить пароли в plaintext
-   - **Решение**: Используется `os.getenv()` для загрузки из `.env`
+1. **Пароли в plaintext** — Не рекомендуется
+   - **Рекомендация**: В продакшне использовать `werkzeug.security` для хэширования
 
 2. **Сессии** — Использование Flask session
    - **Рекомендация**: В продакшне использовать `flask-login`
 
 3. **SQL Injection** — Использование parameterized queries
-   - **Решение**: Все запросы используют `%s` placeholders
+   - **Решение**: Все запросы используют `?` placeholders (SQLite)
 
 4. **SECRET_KEY** — Должен быть уникальным для каждого окружения
-   - **Решение**: Загружается из `.env`
+   - **Решение**: Хранится в `.env` файле
 
 ---
 
-## 8️⃣ Рекомендации по безопасному развертыванию
+## 9️⃣ Рекомендации по безопасному развертыванию
 
 ### При любом развертывании:
 
 1. **НЕ коммитьте** файлы с конфиденциальными данными:
    - `.env`
-   - `*.db`
-   - `chat.db`
+   - `*.db` (chat.db, chat_1to1.db)
+   - `__pycache__/`
 
 2. **Создайте `.env.example`** с пустыми значениями:
    ```env
-   DB_HOST=localhost
-   DB_NAME=chat_app
-   DB_USER=
-   DB_PASSWORD=
-   SECRET_KEY=
+   SECRET_KEY=your_random_secret_key_here
    ```
 
 3. **Используйте `.gitignore`** для исключения:
@@ -272,50 +292,16 @@ app.py
 
 5. **Используйте HTTPS** в продакшне
 
----
-
-## 9️⃣ Диаграмма классов (UML)
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     Flask Application                        │
-├─────────────────────────────────────────────────────────────┤
-│ - app: Flask                                                │
-│ - db: MySQLConnection                                       │
-│ - session: SessionInterface                                 │
-├─────────────────────────────────────────────────────────────┤
-│ + get_db(): MySQLConnection                                 │
-│ + close_db(error): void                                     │
-│ + get_greeting(): String                                    │
-│ + index(): Response                                         │
-│ + login(method: POST/GET): Response                         │
-│ + register(method: POST/GET): Response                      │
-│ + chat(): Response                                          │
-│ + send_message(): JSON                                      │
-│ + get_messages(): JSON                                      │
-│ + logout(): Response                                        │
-└─────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────┐
-│                     User Model                               │
-├─────────────────────────────────────────────────────────────┤
-│ - id: int                                                   │
-│ - name: string                                              │
-│ - surname: string                                           │
-│ - login: string                                             │
-│ - password: string (hashed)                                 │
-└─────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────┐
-│                    Message Model                             │
-├─────────────────────────────────────────────────────────────┤
-│ - id: int                                                   │
-│ - sender_id: int (FK)                                       │
-│ - receiver_id: int (FK)                                     │
-│ - text: string                                              │
-│ - created_at: datetime                                      │
-└─────────────────────────────────────────────────────────────┘
-```
+6. **Хэшируйте пароли** (рекомендуется):
+   ```python
+   from werkzeug.security import generate_password_hash, check_password_hash
+   
+   # При регистрации:
+   user['password'] = generate_password_hash(password)
+   
+   # При входе:
+   check_password_hash(user['password'], password)
+   ```
 
 ---
 
@@ -323,7 +309,8 @@ app.py
 
 ### 1. Локальный (для разработки)
 ```
-SQLite + Flask + localhost:5000
+SQLite + Flask + localhost:5001 (mysql_version)
+SQLite + Flask + localhost:5000 (sqlite_version)
 ```
 
 ### 2. VPS (виртуальный сервер)
@@ -343,10 +330,23 @@ Docker Compose:
 ## 📚 Ссылки
 
 - [Flask Documentation](https://flask.palletsprojects.com/)
-- [MySQL Connector/Python](https://dev.mysql.com/doc/connector-python/en/)
 - [Werkzeug Security](https://werkzeug.palletsprojects.com/security/)
 - [OWASP Flask Guidelines](https://cheatsheetseries.owasp.org/cheatsheets/Flask_Cheat_Sheet.html)
 
 ---
 
+## 📝 Заметки по запуску
+
+### mysql_version (рекомендуемая версия)
+1. Скопируйте `.env.example` в `.env` и настройте параметры (если нужен MySQL)
+2. Запустите: `python app_local.py`
+3. Откройте браузер: `http://localhost:5001`
+
+### sqlite_version (простая версия)
+1. Запустите: `python app.py`
+2. Откройте браузер: `http://localhost:5000`
+
+---
+
 *Архитектура создана 13.06.2026. Дисциплина "Современные способы программирования".*
+

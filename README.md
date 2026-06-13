@@ -41,59 +41,134 @@
 ```
 chat-project/
 │
-├── README.md             ← это файл (обзор)
-├── README_PROJECT.md     ← подробная структура проекта
-├── backlog.md            ← список задач (основной)
-├── instructions.md       ← инструкции для разработчиков
+├── README.md                 ← это файл (обзор)
+├── ARCHITECTURE.md           ← подробная архитектура
+├── backlog.md                ← список задач (основной)
+├── instructions.md           ← инструкции для разработчиков
+├── .gitignore                ← исключения для Git
 │
-├── app.py                ← MySQL-версия (использует MySQL)
-├── app_backup.py         ← SQLite-версия (использует SQLite)
-├── run_mysql.bat         ← скрипт для запуска MySQL
+├── mysql_version/            ← ОСНОВНАЯ версия (SQLite для локалки, MySQL для продакшна)
+│   ├── app_local.py          ← точка входа (порт 5001)
+│   ├── .env.example          ← пример конфигурации (скопируй в .env и настрой)
+│   ├── templates/
+│   │   ├── authorization.html ← вкладки входа/регистрации
+│   │   └── chat.html          ← чат 1-на-1 (современный дизайн)
+│   ├── static/
+│   │   └── style.css          ← современный CSS
+│   ├── chat_1to1.db          ← база данных SQLite (создаётся автоматически)
+│   ├── README.md             ← инструкции для mysql_version
+│   └── requirements.txt      ← зависимости
 │
-├── sqlite_version/       ← SQLite-версия (использует SQLite)
-│   ├── app_backup.py
-│   ├── README.md
-│   └── ...
+├── sqlite_version/           ← УПРОЩЕННАЯ версия
+│   ├── app.py                ← точка входа (порт 5000)
+│   ├── templates/
+│   │   ├── index.html
+│   │   ├── registration.html
+│   │   └── chat.html
+│   ├── chat.db               ← база данных SQLite
+│   ├── README.md             ← инструкции для sqlite_version
+│   └── requirements.txt
 │
-└── mysql_version/        ← MySQL-версия (использует MySQL)
-    ├── app.py
-    ├── README.md
-    └── ...
-│
-├── templates/            ← HTML-страницы (Flask ищет здесь)
-│   ├── index.html
-│   ├── registration.html
-│   └── chat.html
-│
-└── static/               ← файлы (стили и скрипты)
-    ├── style.css
-    └── chat.js
+└── docs/                     ← дополнительные документы
 ```
 
 ---
 
 ## Как запустить проект
 
-### Вариант 1: SQLite-версия (проще, без установки сервера)
+### Вариант 1: mysql_version (рекомендуемая)
 
-1. Открыть терминал в VS Code
-2. Запустить команду:
+1. Открыть папку `mysql_version/`
+2. Скопировать `.env.example` в `.env` и настроить параметры (если нужен MySQL):
+   ```env
+   DATABASE_URL=sqlite:///chat_1to1.db  # для SQLite (по умолчанию)
+   SECRET_KEY=секрет123local
+   FLASK_RUN_PORT=5001
    ```
-   python app_backup.py
+3. Запустить:
    ```
-3. Открыть браузер: `http://127.0.0.1:5000`
+   python app_local.py
+   ```
+4. Открыть браузер: `http://localhost:5001`
 
-### Вариант 2: MySQL-версия (для работы с сервером MySQL)
+**Примечание:** По умолчанию используется SQLite (без установки сервера БД). Для MySQL измените `DATABASE_URL`.
 
-1. Установить XAMPP и запустить MySQL
-2. Создать базу данных (см. `mysql_version/README.md`)
-3. Настроить `.env` файл в папке `mysql_version/`
-4. Запустить:
+### Вариант 2: sqlite_version (упрощённая)
+
+1. Открыть папку `sqlite_version/`
+2. Запустить:
    ```
-   cd mysql_version
    python app.py
    ```
-5. Открыть браузер: `http://127.0.0.1:5000`
+3. Открыть браузер: `http://localhost:5000`
+
+---
+
+## Клонирование проекта (для других разработчиков)
+
+### Шаг 1: Клонирование
+```
+git clone <URL_репозитория>
+cd "Разработка чата (из PyCharm)"
+```
+
+### Шаг 2: Настройка окружения
+1. Скопировать `.env.example` в `.env` и настроить параметры
+2. Установить зависимости (если нужны):
+   ```
+   pip install flask
+   ```
+
+### Шаг 3: Запуск
+Выберите одну из версий:
+- **mysql_version** (рекомендуемая): `cd mysql_version && python app_local.py`
+- **sqlite_version** (простая): `cd sqlite_version && python app.py`
+
+---
+
+## Обновление проекта (если уже клонирована старая версия)
+
+### Шаг 1: Обновление из Git
+```
+git pull
+```
+
+### Шаг 2: Проверка структуры
+Убедитесь, что в корне есть:
+- `mysql_version/` (основная версия)
+- `sqlite_version/` (упрощённая версия)
+
+**Удалите** из корня (если остались):
+- `app.py` (теперь в `mysql_version/` и `sqlite_version/`)
+- `app_local.py` (теперь в `mysql_version/`)
+- `templates/` (теперь внутри `mysql_version/templates/` и `sqlite_version/templates/`)
+- `static/` (теперь внутри `mysql_version/static/` и `sqlite_version/static/`)
+- `chat.db` (теперь в `sqlite_version/chat.db`)
+- `chat_1to1.db` (теперь в `mysql_version/chat_1to1.db`)
+- `backlog_mysql.md` (перенесён в `mysql_version/backlog_mysql.md`)
+
+### Шаг 3: Запуск
+Запустите нужную версию:
+```
+cd mysql_version && python app_local.py
+```
+или
+```
+cd sqlite_version && python app.py
+```
+
+---
+
+## Сравнение версий
+
+| Функция | mysql_version | sqlite_version |
+|---------|---------------|----------------|
+| Порт | 5001 | 5000 |
+| База данных | SQLite (по умолчанию) / MySQL | SQLite |
+| Структура | Основная | Упрощённая |
+| Вкладки входа/регистрации | ✅ | ❌ (отдельные страницы) |
+| Современный дизайн | ✅ | ⚠️ (более простой) |
+| Рекомендуется для | Основной разработки | Быстрого теста |
 
 ---
 
@@ -108,10 +183,47 @@ chat-project/
 
 ---
 
+## Файлы и их назначение
+
+### Корень проекта
+- `README.md` — это файл (обзор проекта)
+- `ARCHITECTURE.md` — подробная архитектура
+- `backlog.md` — список задач (основной)
+- `instructions.md` — инструкции для разработчиков
+- `.gitignore` — исключения для Git
+- `.env.example` — пример конфигурации (копируйте в `.env`)
+
+### mysql_version/ (рекомендуемая)
+- `app_local.py` — точка входа ( Flask + SQLite/MySQL)
+- `.env.example` — пример конфигурации
+- `templates/` — HTML-шаблоны
+  - `authorization.html` — вкладки входа/регистрации
+  - `chat.html` — чат 1-на-1
+- `static/` — статические файлы
+  - `style.css` — современный CSS
+- `chat_1to1.db` — база данных SQLite
+
+### sqlite_version/ (упрощённая)
+- `app.py` — точка входа
+- `templates/` — HTML-шаблоны
+  - `index.html`, `registration.html`, `chat.html`
+- `chat.db` — база данных SQLite
+
+---
+
 ## Ошибки в кодировке
 
-Все файлы now сохранены в правильной кодировке UTF-8. Проблема с отображением русских букв (`╨Ф╨╛╨▒╤А╨╛╨╡ ╤Г╤В╤А╨╛`) была исправлена переписью файлов с правильной кодировкой.
+Все файлы now сохранены в правильной кодировке UTF-8. Проблема с отображением русских букв была исправлена переписью файлов с правильной кодировкой.
+
+---
+
+## Полезные ссылки
+
+- [Flask Documentation](https://flask.palletsprojects.com/)
+- [SQLite Documentation](https://www.sqlite.org/docs.html)
+- [OWASP Security Guidelines](https://owasp.org/www-project-top-ten/)
 
 ---
 
 *Учебный проект. Дисциплина "Современные способы программирования". Магистратура 2026.*
+

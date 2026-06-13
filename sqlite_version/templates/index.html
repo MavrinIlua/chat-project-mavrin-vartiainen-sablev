@@ -1,11 +1,11 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <title>Вход в чат</title>
-    <link rel="stylesheet" href="/static/style.css">
+{% extends "base.html" %}
+
+{% block title %}Вход в чат{% endblock %}
+
+{% block styles %}
+    {{ super() }}
     <style>
-        body {
+        .container {
             font-family: Arial, sans-serif;
             max-width: 400px;
             margin: 80px auto;
@@ -26,9 +26,9 @@
             font-size: 1em;
         }
     </style>
-</head>
-<body>
+{% endblock %}
 
+{% block content %}
     <h2>Добро пожаловать в чат</h2>
 
     {% if error %}
@@ -44,6 +44,4 @@
     <p style="color: #aaa; font-size: 0.85em; margin-top: 16px;">
         Первый раз в чате? <a href="{{ url_for('register') }}">Зарегистрироваться</a>
     </p>
-
-</body>
-</html>
+{% endblock %}

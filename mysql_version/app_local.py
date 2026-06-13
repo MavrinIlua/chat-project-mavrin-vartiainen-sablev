@@ -1,26 +1,17 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, g
-import mysql.connector
+import sqlite3
 import os
-import datetime
-from dotenv import load_dotenv
-
-# Загружаем переменные окружения из .env файла
-load_dotenv()
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "секрет123")
+app.config["SECRET_KEY"] = "секрет123local"
 
 
 def get_db():
-    """Подключается к MySQL"""
+    """Подключается к SQLite базе"""
     if 'db' not in g:
-        g.db = mysql.connector.connect(
-            host=os.getenv("DB_HOST"),
-            database=os.getenv("DB_NAME"),
-            user=os.getenv("DB_USER"),
-            password=os.getenv("DB_PASSWORD")
-        )
-        g.db.autocommit = True
+        g.db = sqlite3.connect("chat_1to1.db")
+        g.db.row_factory = sqlite3.Row  # Доступ по имени: row["nickname"]
+        g.db.execute("PRAGMA foreign_keys = ON")
     return g.db
 
 
@@ -30,6 +21,32 @@ def close_db(error):
     db = g.pop('db', None)
     if db is not None:
         db.close()
+
+
+def init_db():
+    """Создаёт таблицы при первом запуске"""
+    db = get_db()
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id       INTEGER PRIMARY KEY AUTOINCREMENT,
+            name     TEXT NOT NULL,
+            surname  TEXT NOT NULL,
+            login    TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL
+        )
+    """)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS messages (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            sender_id  INTEGER NOT NULL,
+            receiver_id INTEGER NOT NULL,
+            text       TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (sender_id) REFERENCES users(id),
+            FOREIGN KEY (receiver_id) REFERENCES users(id)
+        )
+    """)
+    db.commit()
 
 
 # ---------------------------------------------------------------
@@ -44,6 +61,7 @@ def get_greeting():
     18:00—22:59  → Добрый вечер
     23:00—4:59   → Доброй ночи
     """
+    import datetime
     hour = datetime.datetime.now().hour
     if 5 <= hour < 12:
         return "Доброе утро"
@@ -65,66 +83,39 @@ def index():
     return redirect(url_for("login"))
 
 
-@app.route("/register", methods=["GET", "POST"])
+@app.route("/register")
 def register():
-    """Страница и логика регистрации"""
-    if request.method == "POST":
-        data = request.json
-        
-        name = data.get("name", "").strip()
-        surname = data.get("surname", "").strip()
-        login = data.get("login", "").strip()
-        password = data.get("password", "").strip()
-
-        if not name or not surname or not login or not password:
-            return jsonify({"result": False, "message": "Заполните все поля!", "code": 400})
-
-        db = get_db()
-        cursor = db.cursor(dictionary=True)
-        
-        # Проверяем, есть ли уже такой логин
-        cursor.execute("SELECT * FROM users WHERE login = %s", (login,))
-        user = cursor.fetchone()
-        
-        if user:
-            cursor.close()
-            return jsonify({"result": False, "message": "Такой логин уже занят!", "code": 400})
-
-        # Создаем нового пользователя
-        cursor.execute(
-            "INSERT INTO users (name, surname, login, password) VALUES (%s, %s, %s, %s)",
-            (name, surname, login, password)
-        )
-        new_user_id = cursor.lastrowid
-        cursor.close()
-
-        # Автоматически авторизуем пользователя
-        session['user_id'] = new_user_id
-        session['user_login'] = login
-        session['user_name'] = f"{name} {surname}"
-        
-        return jsonify({"result": True, "message": "Регистрация успешна!", "code": 200})
-
-    return render_template("authorization.html")
+    """Перенаправляем на страницу входа с вкладкой регистрации"""
+    return redirect(url_for("login") + "?tab=register")
 
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
     """Страница и логика входа"""
     if request.method == "POST":
-        data = request.json
+        print("Received login POST request")
+        print("Content-Type:", request.content_type)
+        
+        if request.is_json:
+            data = request.json
+            print("JSON data:", data)
+        else:
+            data = request.form
+            print("Form data:", data)
         
         login = data.get("login", "").strip()
         password = data.get("password", "").strip()
+
+        print(f"Login attempt: {login}, password length: {len(password)}")
 
         if not login or not password:
             return jsonify({"result": False, "message": "Введите логин и пароль!", "code": 400})
 
         db = get_db()
-        cursor = db.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM users WHERE login = %s", (login,))
-        user = cursor.fetchone()
-        cursor.close()
+        user = db.execute("SELECT * FROM users WHERE login = ?", (login,)).fetchone()
+        db.close()
+
+        print(f"User found: {user}")
 
         if user and user['password'] == password:
             session['user_id'] = user['id']
@@ -134,6 +125,7 @@ def login():
         else:
             return jsonify({"result": False, "message": "Неверный логин или пароль!", "code": 400})
 
+    # Для GET-запроса показываем страницу входа
     return render_template("authorization.html")
 
 
@@ -144,15 +136,12 @@ def chat():
         return redirect(url_for("index"))
 
     db = get_db()
-    cursor = db.cursor(dictionary=True)
     
     # Получаем текущего пользователя
-    cursor.execute("SELECT * FROM users WHERE id = %s", (session['user_id'],))
-    current_user = cursor.fetchone()
+    current_user = db.execute("SELECT * FROM users WHERE id = ?", (session['user_id'],)).fetchone()
     
     # Получаем всех пользователей (для списка справа)
-    cursor.execute("SELECT * FROM users WHERE id != %s", (session['user_id'],))
-    all_users = cursor.fetchall()
+    all_users = db.execute("SELECT * FROM users WHERE id != ?", (session['user_id'],)).fetchall()
     
     # Получаем chosen_user_id из параметров запроса (кто выбран для чата)
     chosen_user_id = request.args.get('user_id', type=int)
@@ -162,26 +151,30 @@ def chat():
     
     if chosen_user_id:
         # Получаем информацию о выбранном собеседнике
-        cursor.execute("SELECT * FROM users WHERE id = %s", (chosen_user_id,))
-        chosen_user = cursor.fetchone()
+        chosen_user = db.execute("SELECT * FROM users WHERE id = ?", (chosen_user_id,)).fetchone()
         
         # Получаем сообщения между текущим пользователем и выбранной темой
-        cursor.execute("""
-            SELECT * FROM messages 
-            WHERE (sender_id = %s AND receiver_id = %s) 
-               OR (sender_id = %s AND receiver_id = %s)
-            ORDER BY created_at ASC
-        """, (session['user_id'], chosen_user_id, chosen_user_id, session['user_id']))
-        messages = cursor.fetchall()
+        messages = db.execute("""
+            SELECT m.*, 
+                   u.login as sender_login, 
+                   u.name as sender_name,
+                   u.surname as sender_surname
+            FROM messages m 
+            JOIN users u ON m.sender_id = u.id
+            WHERE (m.sender_id = ? AND m.receiver_id = ?) 
+               OR (m.sender_id = ? AND m.receiver_id = ?)
+            ORDER BY m.created_at ASC
+        """, (session['user_id'], chosen_user_id, chosen_user_id, session['user_id'])).fetchall()
     
-    cursor.close()
+    db.close()
     
     return render_template(
         "chat.html",
         current_user=current_user,
         all_users=all_users,
         chosen_user=chosen_user,
-        messages=messages
+        messages=messages,
+        greeting=get_greeting()
     )
 
 
@@ -191,6 +184,7 @@ def send_message():
     if 'user_id' not in session:
         return jsonify({"result": False, "message": "Сначала авторизуйтесь!", "code": 401})
 
+    import datetime
     data = request.json
     
     receiver_id = data.get("receiver_id")
@@ -202,14 +196,18 @@ def send_message():
         return jsonify({"result": False, "message": "Неверные данные!", "code": 400})
 
     db = get_db()
-    cursor = db.cursor(dictionary=True)
     
-    cursor.execute(
-        "INSERT INTO messages (sender_id, receiver_id, text, created_at) VALUES (%s, %s, %s, NOW())",
-        (session['user_id'], receiver_id, text)
+    # Форматируем дату и время
+    now = datetime.datetime.now()
+    created_at = now.strftime("%Y-%m-%d %H:%M:%S")
+    
+    db.execute(
+        "INSERT INTO messages (sender_id, receiver_id, text, created_at) VALUES (?, ?, ?, ?)",
+        (session['user_id'], receiver_id, text, created_at)
     )
-    new_message_id = cursor.lastrowid
-    cursor.close()
+    db.commit()
+    new_message_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+    db.close()
 
     return jsonify({
         "result": True, 
@@ -230,21 +228,35 @@ def get_messages():
         return jsonify([])
 
     db = get_db()
-    cursor = db.cursor(dictionary=True)
     
-    cursor.execute("""
-        SELECT m.*, u.login as sender_login, u.name as sender_name
+    messages = db.execute("""
+        SELECT m.*, 
+               u.login as sender_login, 
+               u.name as sender_name,
+               u.surname as sender_surname
         FROM messages m
         JOIN users u ON m.sender_id = u.id
-        WHERE (m.sender_id = %s AND m.receiver_id = %s) 
-           OR (m.sender_id = %s AND m.receiver_id = %s)
+        WHERE (m.sender_id = ? AND m.receiver_id = ?) 
+           OR (m.sender_id = ? AND m.receiver_id = ?)
         ORDER BY m.created_at ASC
-    """, (session['user_id'], receiver_id, receiver_id, session['user_id']))
-    
-    messages = cursor.fetchall()
-    cursor.close()
+    """, (session['user_id'], receiver_id, receiver_id, session['user_id'])).fetchall()
+    db.close()
 
-    return jsonify(messages)
+    # Преобразуем в список словарей для JSON
+    result = []
+    for msg in messages:
+        result.append({
+            "id": msg["id"],
+            "sender_id": msg["sender_id"],
+            "receiver_id": msg["receiver_id"],
+            "text": msg["text"],
+            "created_at": msg["created_at"],
+            "sender_login": msg["sender_login"],
+            "sender_name": msg["sender_name"],
+            "sender_surname": msg["sender_surname"]
+        })
+    
+    return jsonify(result)
 
 
 @app.route("/logout")
@@ -261,4 +273,6 @@ def logout():
 # ---------------------------------------------------------------
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    with app.app_context():
+        init_db()
+    app.run(debug=True, port=5001)
