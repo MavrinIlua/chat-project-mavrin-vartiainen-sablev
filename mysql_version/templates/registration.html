@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Регистрация в ChatApp</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .reg-container {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 480px;
+        }
+        h1 { margin: 0 0 24px 0; color: #1e2a3e; text-align: center; }
+        .form-group { margin-bottom: 16px; }
+        label { display: block; margin-bottom: 6px; color: #495057; font-weight: 500; font-size: 0.9rem; }
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102,126,234,0.2);
+        }
+        .btn-submit {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102,126,234,0.4);
+        }
+        .btn-submit:active {
+            transform: translateY(0);
+        }
+        .error { color: #ef4444; text-align: center; margin-bottom: 16px; display: none; }
+        .success { color: #28a745; text-align: center; margin-bottom: 16px; display: none; }
+        .switch-link { text-align: center; margin-top: 20px; color: #6c757d; font-size: 0.95rem; }
+        .switch-link a { color: #667eea; text-decoration: none; font-weight: 600; }
+        .switch-link a:hover { text-decoration: underline; }
+        .hint { font-size: 0.75rem; color: #6c757d; margin-top: 4px; }
+    </style>
+</head>
+<body>
+    <div class="reg-container">
+        <h1>✅ Регистрация в ChatApp</h1>
+        <div id="error" class="error"></div>
+        <div id="success" class="success"></div>
+        
+        <form id="registerForm">
+            <div class="form-group">
+                <label for="name">Имя</label>
+                <input type="text" id="name" name="name" required placeholder="Введите ваше имя">
+            </div>
+            
+            <div class="form-group">
+                <label for="surname">Фамилия</label>
+                <input type="text" id="surname" name="surname" required placeholder="Введите вашу фамилию">
+            </div>
+            
+            <div class="form-group">
+                <label for="login">Логин</label>
+                <input type="text" id="login" name="login" required placeholder="От 3 до 30 символов" minlength="3" maxlength="30">
+                <div class="hint">Используется для входа в систему</div>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Пароль</label>
+                <input type="password" id="password" name="password" required placeholder="От 6 символов" minlength="6">
+            </div>
+            
+            <button type="submit" class="btn-submit">Зарегистрироваться</button>
+        </form>
+        
+        <div class="switch-link">
+            Уже есть аккаунт? <a href="/">Войти</a>
+        </div>
+    </div>
+
+    <script>
+    document.getElementById('registerForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const errorDiv = document.getElementById('error');
+        const successDiv = document.getElementById('success');
+        
+        // Скрытие сообщений
+        errorDiv.style.display = 'none';
+        successDiv.style.display = 'none';
+        
+        try {
+            const response = await fetch('/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: document.getElementById('name').value,
+                    surname: document.getElementById('surname').value,
+                    login: document.getElementById('login').value,
+                    password: document.getElementById('password').value
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.result) {
+                successDiv.textContent = '✅ ' + data.message;
+                successDiv.style.display = 'block';
+                
+                // Автоматический переход к входу через 2 секунды
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 2000);
+            } else {
+                errorDiv.textContent = data.message || 'Ошибка регистрации';
+                errorDiv.style.display = 'block';
+            }
+        } catch (error) {
+            errorDiv.textContent = 'Ошибка подключения к серверу';
+            errorDiv.style.display = 'block';
+        }
+    });
+    </script>
+</body>
+</html>
