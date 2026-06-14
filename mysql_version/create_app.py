@@ -1,4 +1,7 @@
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for, g
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+code = '''from flask import Flask, render_template, request, jsonify, session, redirect, url_for, g
 import mysql.connector
 import os
 from dotenv import load_dotenv
@@ -122,3 +125,9 @@ def logout():
 
 if __name__ == "__main__":
     app.run(debug=True, port=5001)
+'''
+
+with open('app_local.py', 'w', encoding='utf-8') as f:
+    f.write(code)
+
+print("File app_local.py created successfully!")
